@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>系统分析师刷题</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-32.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="刷题">
+<meta name="theme-color" content="#2563eb">
+<style>
+  :root {
+    --bg:#f5f6f8; --card:#ffffff; --text:#1f2937; --muted:#6b7280;
+    --accent:#2563eb; --accent-soft:#eff6ff;
+    --green:#16a34a; --green-soft:#f0fdf4; --green-border:#bbf7d0;
+    --red:#dc2626; --red-soft:#fef2f2; --red-border:#fecaca;
+    --border:#e5e7eb; --track:#eef1f5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0f1115; --card:#181c24; --text:#e5e7eb; --muted:#98a1ad;
+      --accent:#4f8df9; --accent-soft:#1c2740;
+      --green:#34c26b; --green-soft:#122417; --green-border:#1e3b27;
+      --red:#f0655f; --red-soft:#2a1417; --red-border:#4b1d22;
+      --border:#272d38; --track:#242a36;
+    }
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html { -webkit-text-size-adjust:100%; }
+  body {
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    padding-bottom:calc(66px + env(safe-area-inset-bottom));
+    touch-action:manipulation;
+  }
+  header {
+    position:sticky; top:0; z-index:9;
+    background:var(--card); border-bottom:1px solid var(--border);
+    padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  }
+  .htitle { font-size:17px; font-weight:700; }
+  .hsub { font-size:12px; color:var(--muted); margin-top:2px; }
+  main { max-width:640px; margin:14px auto 0; padding:0 14px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:14px;
+          padding:16px; margin-bottom:14px; }
+  h2 { font-size:15px; margin:0 0 10px; }
+  .muted { color:var(--muted); font-size:13px; }
+  .hidden { display:none !important; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .grow { flex:1; }
+  .center { text-align:center; }
+  .chip { display:inline-block; font-size:12px; color:var(--accent);
+          background:var(--accent-soft); border-radius:999px; padding:2px 10px; }
+  .chip.red { color:var(--red); background:var(--red-soft); }
+  .chip.green { color:var(--green); background:var(--green-soft); }
+
+  /* 控件 */
+  select, button.btn, textarea {
+    font-size:15px; padding:9px 12px; border-radius:10px;
+    border:1px solid var(--border); background:var(--card); color:var(--text);
+  }
+  button.btn { min-height:40px; cursor:pointer; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button.danger { color:var(--red); border-color:var(--red-border); }
+  button.big { width:100%; min-height:48px; font-size:16px; }
+  button:disabled { opacity:.5; }
+  textarea { width:100%; min-height:90px; font-size:13px; }
+
+  /* 首页统计块 */
+  .tiles { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:14px; }
+  .tile { background:var(--card); border:1px solid var(--border); border-radius:14px;
+          text-align:center; padding:14px 6px; }
+  .tile .num { font-size:26px; font-weight:700; }
+  .tile .lbl { font-size:12px; color:var(--muted); margin-top:3px; }
+
+  /* 考点行 */
+  .crow { padding:11px 0; border-bottom:1px solid var(--border); }
+  .crow:last-child { border-bottom:none; }
+  .crow .l1 { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  .crow .l1 b { font-size:14.5px; }
+  .crow .l1 .meta { font-size:12px; color:var(--muted); flex:1; }
+  .bar { background:var(--track); border-radius:999px; height:8px; overflow:hidden; flex:1; }
+  .bar > i { display:block; height:100%; background:var(--accent); border-radius:999px; }
+  .bar.acc-high > i { background:var(--green); }
+  .bar.acc-low > i { background:var(--red); }
+
+  /* 题目 */
+  .qhead { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .qtext { font-size:16.5px; line-height:1.75; white-space:pre-wrap; margin-bottom:14px; }
+  .opt { display:flex; gap:11px; align-items:flex-start; width:100%; text-align:left;
+         padding:13px 13px; margin-bottom:9px; border:1px solid var(--border);
+         border-radius:12px; background:var(--card); color:var(--text);
+         cursor:pointer; font-size:15px; line-height:1.6; min-height:48px; }
+  .opt:disabled { cursor:default; }
+  .opt .badge { flex:none; width:26px; height:26px; border-radius:8px; background:var(--track);
+                color:var(--muted); display:flex; align-items:center; justify-content:center;
+                font-size:13.5px; font-weight:600; margin-top:1px; }
+  .opt.correct { border-color:var(--green); background:var(--green-soft); }
+  .opt.correct .badge { background:var(--green); color:#fff; }
+  .opt.wrong { border-color:var(--red); background:var(--red-soft); }
+  .opt.wrong .badge { background:var(--red); color:#fff; }
+  .opt.dim { opacity:.5; }
+  .feedback { border-radius:12px; padding:13px 14px; margin-top:12px; font-size:14.5px; line-height:1.75; }
+  .feedback.ok { background:var(--green-soft); border:1px solid var(--green-border); }
+  .feedback.no { background:var(--red-soft); border:1px solid var(--red-border); }
+  .feedback .explain { margin-top:8px; }
+  .progress { color:var(--muted); font-size:13px; }
+  .qfoot { display:flex; justify-content:flex-end; margin-top:12px; }
+  .summary-big { font-size:34px; font-weight:700; text-align:center; margin:8px 0; }
+
+  /* 列表条目 */
+  .witem { padding:11px 0; border-bottom:1px solid var(--border); }
+  .witem:last-child { border-bottom:none; }
+  .wq { font-size:14.5px; line-height:1.65; }
+  .wmeta { margin-top:6px; font-size:12.5px; color:var(--muted);
+           display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .wmeta a { color:var(--accent); cursor:pointer; text-decoration:none; }
+  .reveal { margin-top:8px; background:var(--bg); border:1px dashed var(--border);
+            border-radius:10px; padding:10px; font-size:13.5px; line-height:1.75; }
+
+  /* 底部标签栏 */
+  .tabbar {
+    position:fixed; left:0; right:0; bottom:0; z-index:9;
+    display:flex; background:var(--card); border-top:1px solid var(--border);
+    padding:6px 0 env(safe-area-inset-bottom);
+  }
+  .tabbar button {
+    flex:1; background:none; border:none; color:var(--muted);
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    font-size:11px; padding:4px 0; cursor:pointer; position:relative;
+  }
+  .tabbar button .ticon { font-size:21px; line-height:1; }
+  .tabbar button.active { color:var(--accent); }
+  .tabbar .badge {
+    position:absolute; top:0; left:calc(50% + 6px);
+    background:var(--red); color:#fff; font-size:10px; font-style:normal;
+    border-radius:999px; padding:1px 5px; min-width:16px;
+  }
+  ul.weaklist, ol.weaklist { margin:0; padding-left:20px; }
+  ul.weaklist li, ol.weaklist li { margin-bottom:6px; font-size:14px; line-height:1.7; }
+</style>
+</head>
+<body>
+<header>
+  <div class="htitle">📚 系统分析师刷题</div>
+  <div class="hsub" id="hdr-sub">加载中…</div>
+</header>
+
+<main>
+  <section id="view-home"></section>
+
+  <section id="view-quiz" class="hidden">
+    <div class="card hidden" id="resume-card">
+      <div class="row">
+        <span class="grow" id="resume-text" style="font-size:14px"></span>
+        <button class="btn primary" onclick="resumeQuiz()">继续</button>
+        <button class="btn" onclick="discardQuiz()">放弃</button>
+      </div>
+    </div>
+    <div class="card" id="quiz-setup">
+      <h2>开始一组题</h2>
+      <div class="row" style="margin:10px 0">
+        <select id="quiz-cat" class="grow" style="flex:2"></select>
+        <select id="quiz-count">
+          <option value="10">10 题</option>
+          <option value="20" selected>20 题</option>
+          <option value="30">30 题</option>
+          <option value="0">全部</option>
+        </select>
+      </div>
+      <div class="row">
+        <label class="muted" style="font-size:14px"><input type="checkbox" id="quiz-shuffle" checked> 随机顺序</label>
+        <span class="grow"></span>
+        <button class="btn primary" onclick="startQuiz(false)">开始刷题</button>
+      </div>
+      <p class="muted" style="margin:10px 0 0">答题后立即显示解析;答错自动进入错题本。</p>
+    </div>
+    <div id="quiz-area"></div>
+  </section>
+
+  <section id="view-wrong" class="hidden"></section>
+  <section id="view-stats" class="hidden"></section>
+</main>
+
+<nav class="tabbar">
+  <button id="tab-home" class="active" onclick="switchTab('home')"><span class="ticon">🏠</span><span>首页</span></button>
+  <button id="tab-quiz" onclick="switchTab('quiz')"><span class="ticon">📝</span><span>刷题</span></button>
+  <button id="tab-wrong" onclick="switchTab('wrong')"><span class="ticon">❌</span><span>错题本</span><i class="badge hidden" id="wrong-badge">0</i></button>
+  <button id="tab-stats" onclick="switchTab('stats')"><span class="ticon">📊</span><span>分析</span></button>
+</nav>
+
+<script src="data/bank.js"></script>
+<script>
+"use strict";
+/* ================= 基础数据 ================= */
+var BANK = window.BANK || [];
+var QMAP = {};
+BANK.forEach(function (q) { QMAP[q.id] = q; });
+var CATS = [];
+BANK.forEach(function (q) { if (CATS.indexOf(q.category) < 0) CATS.push(q.category); });
+var STREAK_REMOVE = 2;   // 错题连续答对 N 次后自动移出错题本
+var LS = { att: "rq_attempts", wrong: "rq_wrong", quiz: "rq_session" };
+
+var $ = function (s) { return document.querySelector(s); };
+var esc = function (s) {
+  return (s || "").replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+};
+function loadJSON(key, fallback) {
+  try { var v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+  catch (e) { return fallback; }
+}
+var attempts = loadJSON(LS.att, []);
+var wrong = loadJSON(LS.wrong, {});
+if (!attempts.length && attempts.constructor !== Array) attempts = [];
+if (wrong.constructor !== Object) wrong = {};
+
+function persist() {
+  localStorage.setItem(LS.att, JSON.stringify(attempts));
+  localStorage.setItem(LS.wrong, JSON.stringify(wrong));
+}
+function fmtNow() {
+  var d = new Date(), p = function (n) { return (n < 10 ? "0" : "") + n; };
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+}
+
+/* ================= 错题本逻辑(与旧版一致) ================= */
+function updateWrong(qid, isCorrect) {
+  var now = fmtNow();
+  if (isCorrect) {
+    if (wrong[qid]) {
+      wrong[qid].streak++;
+      wrong[qid].lastCorrectAt = now;
+      if (wrong[qid].streak >= STREAK_REMOVE) { delete wrong[qid]; return true; }
+    }
+    return false;
+  }
+  if (wrong[qid]) {
+    wrong[qid].n++; wrong[qid].streak = 0; wrong[qid].lastWrongAt = now;
+  } else {
+    wrong[qid] = { n: 1, streak: 0, lastWrongAt: now, lastCorrectAt: null };
+  }
+  return false;
+}
+
+/* ================= 统计 ================= */
+function computeStats() {
+  var catIdx = {}, cats = [];
+  CATS.forEach(function (n, i) { catIdx[n] = i; cats.push({ name: n, total: 0, attempts: 0, correct: 0, accuracy: null, wrongLeft: 0 }); });
+  BANK.forEach(function (q) { cats[catIdx[q.category]].total++; });
+  var wrongChoice = {};
+  attempts.forEach(function (a) {
+    var q = QMAP[a.qid]; if (!q) return;
+    var c = cats[catIdx[q.category]];
+    c.attempts++; if (a.ok) c.correct++;
+    if (!a.ok) {
+      if (!wrongChoice[a.qid]) wrongChoice[a.qid] = {};
+      wrongChoice[a.qid][a.choice] = (wrongChoice[a.qid][a.choice] || 0) + 1;
+    }
+  });
+  cats.forEach(function (c) {
+    if (c.attempts) c.accuracy = Math.round(100 * c.correct / c.attempts);
+    c.wrongLeft = BANK.filter(function (q) { return q.category === c.name && wrong[q.id]; }).length;
+  });
+  var weak = cats.filter(function (c) { return c.accuracy !== null && c.attempts >= 5 && c.accuracy < 85; })
+                 .sort(function (a, b) { return a.accuracy - b.accuracy; });
+  var top = Object.keys(wrong).sort(function (a, b) { return wrong[b].n - wrong[a].n; }).slice(0, 12)
+    .map(function (qid) {
+      var q = QMAP[qid]; if (!q) return null;
+      var wc = wrongChoice[qid] || {};
+      return {
+        id: qid, category: q.category, question: q.question,
+        wrongCount: wrong[qid].n, streak: wrong[qid].streak,
+        wrongChoices: Object.keys(wc).sort(function (a, b) { return wc[b] - wc[a]; })
+                      .map(function (l) { return [l, wc[l]]; })
+      };
+    }).filter(Boolean);
+  var totalCorrect = 0;
+  attempts.forEach(function (a) { if (a.ok) totalCorrect++; });
+  return {
+    totalQuestions: BANK.length, totalAttempts: attempts.length, totalCorrect: totalCorrect,
+    overallAccuracy: attempts.length ? Math.round(100 * totalCorrect / attempts.length) : null,
+    wrongLeft: Object.keys(wrong).length, cats: cats, weak: weak, top: top
+  };
+}
+function updateBadge() {
+  var n = Object.keys(wrong).length, b = $("#wrong-badge");
+  b.textContent = n;
+  b.classList.toggle("hidden", !n);
+  var acc = attempts.length ? Math.round(100 * attempts.reduce(function (s, a) { return s + (a.ok ? 1 : 0); }, 0) / attempts.length) + "%" : "—";
+  $("#hdr-sub").textContent = BANK.length + " 题 · 累计作答 " + attempts.length + " · 正确率 " + acc + " · 待消灭错题 " + n;
+}
+
+/* ================= 标签切换 ================= */
+function switchTab(name) {
+  ["home", "quiz", "wrong", "stats"].forEach(function (t) {
+    $("#tab-" + t).classList.toggle("active", t === name);
+    $("#view-" + t).classList.toggle("hidden", t !== name);
+  });
+  if (name === "home") loadHome();
+  if (name === "quiz") prepareQuizTab();
+  if (name === "wrong") loadWrong();
+  if (name === "stats") loadStats();
+  window.scrollTo(0, 0);
+}
+
+/* ================= 首页 ================= */
+function tileHTML(num, lbl, color) {
+  return '<div class="tile"><div class="num"' + (color ? ' style="color:' + color + '"' : '') + '>' + num +
+         '</div><div class="lbl">' + lbl + "</div></div>";
+}
+function loadHome() {
+  updateBadge();
+  var s = computeStats();
+  var accTxt = s.overallAccuracy === null ? "—" : s.overallAccuracy + "%";
+  var weakHtml = "";
+  if (s.weak.length) {
+    weakHtml = '<div class="card"><h2>🎯 薄弱考点(建议优先)</h2><ul class="weaklist">' +
+      s.weak.map(function (w) {
+        return "<li>" + esc(w.name) + ' — 正确率 <b style="color:var(--red)">' + w.accuracy + "%</b>(已答 " + w.attempts +
+          ' 次)<button class="btn" style="padding:4px 12px;font-size:12.5px;margin-left:6px" onclick="quickDrill(\'' + esc(w.name) + '\')">去刷</button></li>';
+      }).join("") + "</ul></div>";
+  }
+  $("#view-home").innerHTML =
+    '<div class="tiles">' +
+      tileHTML(s.totalQuestions, "题库总数") +
+      tileHTML(s.totalAttempts, "累计作答") +
+      tileHTML(accTxt, "总正确率") +
+      tileHTML(s.wrongLeft, "待消灭错题", s.wrongLeft ? "var(--red)" : "var(--green)") +
+    "</div>" + weakHtml +
+    '<div class="card"><h2>按考点练习</h2>' +
+    s.cats.map(function (c) {
+      var barCls = c.accuracy === null ? "" : (c.accuracy >= 80 ? "acc-high" : (c.accuracy < 60 ? "acc-low" : ""));
+      var barW = c.accuracy === null ? 0 : c.accuracy;
+      var acc = c.accuracy === null ? "未作答" : c.accuracy + "%";
+      return '<div class="crow"><div class="l1"><b>' + esc(c.name) + "</b>" +
+        '<span class="meta">' + c.total + " 题 · 已答 " + c.attempts +
+        (c.wrongLeft ? ' · <span style="color:var(--red)">错 ' + c.wrongLeft + "</span>" : "") +
+        '</span><span style="font-size:13px;color:var(--muted)">' + acc + "</span>" +
+        '<button class="btn" style="padding:5px 14px;font-size:13px" onclick="quickDrill(\'' + esc(c.name) + '\')">练习</button></div>' +
+        '<div class="bar ' + barCls + '"><i style="width:' + barW + '%"></i></div></div>';
+    }).join("") + "</div>";
+}
+function fillCatSelect() {
+  $("#quiz-cat").innerHTML = '<option value="全部">全部考点(随机混刷)</option>' +
+    CATS.map(function (c) {
+      var n = BANK.filter(function (q) { return q.category === c; }).length;
+      return '<option value="' + esc(c) + '">' + esc(c) + "(" + n + " 题)</option>";
+    }).join("");
+}
+function quickDrill(cat) {
+  switchTab("quiz");
+  var sel = $("#quiz-cat");
+  for (var i = 0; i < sel.options.length; i++) if (sel.options[i].value === cat) sel.value = cat;
+  startQuiz(false);
+}
+
+/* ================= 刷题 ================= */
+var QUIZ = loadJSON(LS.quiz, null);
+
+function saveSession() {
+  if (QUIZ && !QUIZ.done) localStorage.setItem(LS.quiz, JSON.stringify(QUIZ));
+  else localStorage.removeItem(LS.quiz);
+}
+function shuffleArr(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1)), t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+  return arr;
+}
+function prepareQuizTab() {
+  if (QUIZ && !QUIZ.done) {
+    var valid = QUIZ.ids.filter(function (id) { return QMAP[id]; });
+    if (valid.length && valid.length === QUIZ.ids.length) {
+      $("#resume-text").textContent = "检测到未完成的练习:第 " + (QUIZ.idx + 1) + " / " + QUIZ.ids.length + " 题";
+      $("#resume-card").classList.remove("hidden");
+      $("#quiz-setup").classList.add("hidden");
+      return;
+    }
+    QUIZ = null; saveSession();
+  }
+  $("#resume-card").classList.add("hidden");
+  $("#quiz-setup").classList.remove("hidden");
+}
+function resumeQuiz() {
+  $("#resume-card").classList.add("hidden");
+  $("#quiz-setup").classList.add("hidden");
+  QUIZ.answered = false;
+  renderQuestion();
+}
+function discardQuiz() {
+  QUIZ = null; saveSession();
+  $("#resume-card").classList.add("hidden");
+  $("#quiz-setup").classList.remove("hidden");
+  $("#quiz-area").innerHTML = "";
+}
+function startQuiz(fromWrong, wrongCategory) {
+  var ids;
+  if (fromWrong) {
+    var cat = wrongCategory || "全部";
+    ids = Object.keys(wrong).filter(function (id) {
+      return QMAP[id] && (cat === "全部" || QMAP[id].category === cat);
+    });
+    shuffleArr(ids);
+    if (!ids.length) { alert("错题本里没有可选的题目"); return; }
+    QUIZ = { ids: ids, idx: 0, answered: false, mode: "wrong", cat: cat, correct: 0, wrongList: [], done: false };
+  } else {
+    var c = $("#quiz-cat").value;
+    var count = parseInt($("#quiz-count").value, 10);
+    ids = BANK.filter(function (q) { return c === "全部" || q.category === c; }).map(function (q) { return q.id; });
+    if ($("#quiz-shuffle").checked) shuffleArr(ids);
+    if (count > 0) ids = ids.slice(0, count);
+    if (!ids.length) { alert("没有可做的题目"); return; }
+    QUIZ = { ids: ids, idx: 0, answered: false, mode: "practice", cat: c, correct: 0, wrongList: [], done: false };
+  }
+  saveSession();
+  $("#quiz-setup").classList.add("hidden");
+  $("#resume-card").classList.add("hidden");
+  renderQuestion();
+}
+function curQ() { return QMAP[QUIZ.ids[QUIZ.idx]]; }
+function renderQuestion() {
+  var q = curQ(), total = QUIZ.ids.length;
+  $("#quiz-area").innerHTML =
+    '<div class="card"><div class="qhead"><span class="chip">' + esc(q.category) +
+    (QUIZ.mode === "wrong" ? " · 错题回做" : "") + '</span><span class="progress">' + (QUIZ.idx + 1) + " / " + total + "</span></div>" +
+    '<div class="qtext">' + esc(q.question) + "</div>" +
+    "<div>" +
+    Object.keys(q.options).map(function (l) {
+      return '<button class="opt" id="opt-' + l + '" onclick="choose(\'' + l + '\')"><span class="badge">' + l + "</span><span>" + esc(q.options[l]) + "</span></button>";
+    }).join("") +
+    "</div>" +
+    '<div id="feedback" class="feedback hidden"></div>' +
+    '<div class="qfoot"><button id="btn-next" class="btn primary hidden" onclick="nextQ()">下一题</button></div></div>';
+  window.scrollTo(0, 0);
+}
+function choose(letter) {
+  if (!QUIZ || QUIZ.done || QUIZ.answered) return;
+  QUIZ.answered = true;
+  var q = curQ();
+  var isCorrect = letter === q.answer;
+  attempts.push({ qid: q.id, choice: letter, ok: isCorrect ? 1 : 0, mode: QUIZ.mode, at: fmtNow() });
+  var removed = updateWrong(q.id, isCorrect);
+  QUIZ.correct += isCorrect ? 1 : 0;
+  if (!isCorrect) QUIZ.wrongList.push({ id: q.id, your: letter, answer: q.answer });
+  persist();
+
+  Object.keys(q.options).forEach(function (l) {
+    var el = document.getElementById("opt-" + l);
+    if (l === q.answer) el.classList.add("correct");
+    else if (l === letter) el.classList.add("wrong");
+    else el.classList.add("dim");
+    el.disabled = true;
+  });
+  var fb = $("#feedback");
+  fb.className = "feedback " + (isCorrect ? "ok" : "no");
+  var msg = isCorrect
+    ? "✅ 回答正确,答案是 <b>" + q.answer + "</b>"
+    : "❌ 回答错误,正确答案是 <b>" + q.answer + "</b>。本题已进入错题本";
+  if (removed) msg += "<br>🎉 本题已连续答对 " + STREAK_REMOVE + " 次,自动移出错题本";
+  else if (isCorrect && QUIZ.mode === "wrong" && wrong[q.id]) msg += "<br>(连对 1 次,再连对 1 次移出错题本)";
+  msg += '<div class="explain"><b>解析:</b>' + esc(q.explanation || "") + "</div>";
+  fb.innerHTML = msg;
+  fb.classList.remove("hidden");
+  var btn = $("#btn-next");
+  btn.classList.remove("hidden");
+  if (QUIZ.idx === QUIZ.ids.length - 1) btn.textContent = "查看结果";
+  updateBadge();
+  saveSession();
+  fb.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function nextQ() {
+  QUIZ.idx++; QUIZ.answered = false;
+  if (QUIZ.idx >= QUIZ.ids.length) { QUIZ.done = true; saveSession(); return showSummary(); }
+  saveSession();
+  renderQuestion();
+}
+function showSummary() {
+  var total = QUIZ.ids.length, c = QUIZ.correct;
+  var pct = Math.round(100 * c / total);
+  var wrongHtml = "";
+  if (QUIZ.wrongList.length) {
+    wrongHtml = '<div style="text-align:left;margin-top:14px"><b>本次答错(已入错题本):</b><ul class="weaklist">' +
+      QUIZ.wrongList.map(function (w) {
+        return '<li class="muted">' + esc(QMAP[w.id].question.slice(0, 60)) + "…(你选 " + w.your + ",正确 " + w.answer + ")</li>";
+      }).join("") + "</ul></div>";
+  }
+  $("#quiz-area").innerHTML =
+    '<div class="card center"><div class="summary-big">' + (pct >= 80 ? "🎉" : "💪") + " " + c + " / " + total + "</div>" +
+    '<div class="muted">正确率 ' + pct + "% " + (pct >= 80 ? "达标,继续保持" : "低于 80%,建议回看解析后再来一组") + "</div>" +
+    wrongHtml +
+    '<div class="row" style="justify-content:center;margin-top:18px">' +
+    '<button class="btn primary" onclick="resetSetup()">再来一组</button>' +
+    '<button class="btn" onclick="switchTab(\'stats\')">看错题分析</button>' +
+    '<button class="btn" onclick="switchTab(\'home\')">返回首页</button></div></div>';
+}
+function resetSetup() {
+  QUIZ = null; saveSession();
+  $("#quiz-setup").classList.remove("hidden");
+  $("#quiz-area").innerHTML = "";
+}
+
+/* ================= 错题本页 ================= */
+function loadWrong() {
+  updateBadge();
+  var ids = Object.keys(wrong).filter(function (id) { return QMAP[id]; });
+  ids.sort(function (a, b) { return (wrong[b].lastWrongAt || "").localeCompare(wrong[a].lastWrongAt || ""); });
+  if (!ids.length) {
+    $("#view-wrong").innerHTML = '<div class="card center"><h2>✅ 错题本是空的</h2>' +
+      '<p class="muted">刷题时答错的题会自动出现在这里,连对 ' + STREAK_REMOVE + " 次自动移出。</p></div>";
+    return;
+  }
+  var cats = [];
+  ids.forEach(function (id) { var c = QMAP[id].category; if (cats.indexOf(c) < 0) cats.push(c); });
+  $("#view-wrong").innerHTML =
+    '<div class="card"><div class="row"><b style="font-size:15px">错题本 · ' + ids.length + " 题</b>" +
+    '<select id="wrong-cat" class="grow"><option value="全部">全部考点</option>' +
+    cats.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + "</option>"; }).join("") +
+    "</select></div>" +
+    '<div class="row" style="margin-top:10px">' +
+    '<button class="btn primary grow" style="flex:2" onclick="startQuiz(true, document.getElementById(\'wrong-cat\').value)">回做选中考点</button>' +
+    '<button class="btn danger grow" onclick="clearWrong()">清空错题本</button></div>' +
+    '<p class="muted" style="margin:9px 0 0">回做时连续答对 ' + STREAK_REMOVE + " 次自动移出;答错则重新计数。</p></div>" +
+    '<div class="card">' +
+    ids.map(function (id) {
+      var w = wrong[id], q = QMAP[id];
+      var dots = "●".repeat(Math.min(w.streak, STREAK_REMOVE)) + "○".repeat(Math.max(0, STREAK_REMOVE - w.streak));
+      var qtext = q.question.length > 80 ? q.question.slice(0, 80) + "…" : q.question;
+      return '<div class="witem"><div class="wq">' + esc(qtext) + "</div>" +
+        '<div class="wmeta"><span class="chip">' + esc(q.category) + "</span>" +
+        "<span>错 " + w.n + " 次</span><span>" + dots + " " + Math.min(w.streak, STREAK_REMOVE) + "/" + STREAK_REMOVE + " 连对</span>" +
+        "<span>" + (w.lastWrongAt ? "上次答错 " + w.lastWrongAt : "") + "</span>" +
+        '<a onclick="reveal(\'' + id + '\')">看解析</a></div>' +
+        '<div class="reveal hidden" id="wr-' + id + '"></div></div>';
+    }).join("") + "</div>";
+}
+function reveal(id) {
+  var el = document.getElementById("wr-" + id);
+  if (!el.classList.contains("hidden")) { el.classList.add("hidden"); return; }
+  var q = QMAP[id];
+  el.innerHTML = "<b>正确答案 " + q.answer + "</b><br><b>解析:</b>" + esc(q.explanation || "");
+  el.classList.remove("hidden");
+}
+function clearWrong() {
+  var cat = $("#wrong-cat") ? $("#wrong-cat").value : "全部";
+  var n = Object.keys(wrong).filter(function (id) {
+    return QMAP[id] && (cat === "全部" || QMAP[id].category === cat);
+  }).length;
+  if (!confirm("确定清空" + (cat === "全部" ? "" : "「" + cat + "」") + "的 " + n + " 道错题吗?(做题历史保留)")) return;
+  Object.keys(wrong).forEach(function (id) {
+    if (QMAP[id] && (cat === "全部" || QMAP[id].category === cat)) delete wrong[id];
+  });
+  persist(); loadWrong();
+}
+
+/* ================= 错题分析页 ================= */
+function loadStats() {
+  updateBadge();
+  var s = computeStats();
+  var weakHtml = s.weak.length
+    ? '<ol class="weaklist">' + s.weak.map(function (w) {
+        return "<li><b>" + esc(w.name) + "</b> 正确率 " + w.accuracy + "%(已答 " + w.attempts +
+          ' 次)<button class="btn" style="padding:4px 12px;font-size:12.5px;margin-left:6px" onclick="quickDrill(\'' + esc(w.name) + '\')">去刷</button></li>';
+      }).join("") + "</ol>"
+    : '<p class="muted" style="margin:0">暂无数据(每个考点刷满 5 题后自动生成薄弱点分析)。</p>';
+  var topHtml = s.top.length
+    ? s.top.map(function (i) {
+        var qtext = i.question.length > 70 ? i.question.slice(0, 70) + "…" : i.question;
+        return '<div class="witem"><div class="wq">' + esc(qtext) + "</div>" +
+          '<div class="wmeta"><span class="chip">' + esc(i.category) + "</span>" +
+          '<span style="color:var(--red)">累计错 ' + i.wrongCount + " 次</span>" +
+          "<span>常错选项: " + (i.wrongChoices.length ? i.wrongChoices.map(function (p) { return p[0] + "×" + p[1]; }).join("、") : "—") + "</span>" +
+          '<a onclick="reveal(\'' + i.id + '\')">看解析</a></div>' +
+          '<div class="reveal hidden" id="wr-' + i.id + '"></div></div>';
+      }).join("")
+    : '<p class="muted" style="margin:0">还没有错题记录,先去刷几题。</p>';
+  $("#view-stats").innerHTML =
+    '<div class="card"><div class="row"><b style="font-size:15px">薄弱考点</b>' +
+    '<span class="muted grow" style="text-align:right">累计作答 ' + s.totalAttempts + " · 总正确率 " +
+    (s.overallAccuracy === null ? "—" : s.overallAccuracy + "%") + "</span></div>" +
+    '<div style="margin-top:8px">' + weakHtml + "</div></div>" +
+    '<div class="card"><h2>各考点正确率</h2>' +
+    s.cats.slice().sort(function (a, b) { return (a.accuracy === null ? 101 : a.accuracy) - (b.accuracy === null ? 101 : b.accuracy); })
+    .map(function (c) {
+      var cls = c.accuracy === null ? "" : (c.accuracy >= 80 ? "acc-high" : (c.accuracy < 60 ? "acc-low" : ""));
+      var acc = c.accuracy === null ? "未作答" : c.accuracy + "%(" + c.attempts + "次)";
+      return '<div class="crow"><div class="l1"><b style="font-size:13.5px">' + esc(c.name) + "</b>" +
+        '<span class="meta" style="text-align:right">' + acc +
+        (c.wrongLeft ? ' <span style="color:var(--red)">错' + c.wrongLeft + "</span>" : "") + "</span></div>" +
+        '<div class="bar ' + cls + '"><i style="width:' + (c.accuracy || 0) + '%"></i></div></div>';
+    }).join("") + "</div>" +
+    '<div class="card"><h2>高频错题(错误次数排行)</h2>' + topHtml + "</div>" +
+    '<div class="card"><h2>数据备份</h2>' +
+    '<p class="muted" style="margin-top:0">做题记录只保存在本机浏览器里,换设备前建议导出备份。</p>' +
+    '<div class="row"><button class="btn grow" onclick="exportData()">导出记录</button>' +
+    '<button class="btn grow" onclick="toggleImport()">导入记录</button></div>' +
+    '<div id="import-box" class="hidden" style="margin-top:10px">' +
+    '<textarea id="import-text" placeholder="粘贴之前导出的备份 JSON"></textarea>' +
+    '<div class="row" style="margin-top:8px"><button class="btn primary grow" onclick="importData()">导入(覆盖现有记录)</button></div></div></div>' +
+    '<div class="card center"><button class="btn danger" onclick="resetAll()">清空全部做题记录(重置)</button></div>';
+}
+function exportData() {
+  var payload = JSON.stringify({ v: 1, exportedAt: new Date().toISOString(), attempts: attempts, wrong: wrong });
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(payload).then(function () { alert("备份已复制到剪贴板,可粘贴到备忘录保存"); }, function () { showManual(payload); });
+  } else showManual(payload);
+  function showManual(text) {
+    var box = $("#import-box");
+    box.classList.remove("hidden");
+    $("#import-text").value = text;
+    $("#import-text").focus();
+    alert("请全选并复制文本框内容,自行粘贴保存");
+  }
+}
+function toggleImport() { $("#import-box").classList.toggle("hidden"); }
+function importData() {
+  var text = $("#import-text").value.trim();
+  if (!text) { alert("请先粘贴备份 JSON"); return; }
+  var obj;
+  try { obj = JSON.parse(text); } catch (e) { alert("JSON 解析失败:" + e.message); return; }
+  if (!obj || obj.attempts.constructor !== Array || obj.wrong.constructor !== Object) {
+    alert("备份格式不正确(缺少 attempts/wrong)"); return;
+  }
+  if (!confirm("导入将覆盖当前的做题记录与错题本,确定?")) return;
+  attempts = obj.attempts; wrong = obj.wrong;
+  persist();
+  alert("导入成功:" + attempts.length + " 条作答记录," + Object.keys(wrong).length + " 道错题");
+  loadStats();
+}
+function resetAll() {
+  if (!confirm("将清空所有作答记录与错题本,且无法恢复,确定?")) return;
+  attempts = []; wrong = {};
+  persist();
+  switchTab("home");
+}
+
+/* ================= 键盘操作(桌面端) ================= */
+document.addEventListener("keydown", function (e) {
+  if ($("#view-quiz").classList.contains("hidden") || !QUIZ || QUIZ.done) return;
+  if (e.key === "Enter" || e.key === " ") {
+    var btn = $("#btn-next");
+    if (btn && !btn.classList.contains("hidden")) { e.preventDefault(); nextQ(); }
+    return;
+  }
+  var map = { a: "A", b: "B", c: "C", d: "D", "1": "A", "2": "B", "3": "C", "4": "D" };
+  var letter = map[e.key.toLowerCase()];
+  if (letter && !QUIZ.answered) choose(letter);
+});
+
+/* ================= 启动 ================= */
+fillCatSelect();
+updateBadge();
+loadHome();
+prepareQuizTab();
+if ("serviceWorker" in navigator &&
+    (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>

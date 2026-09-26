@@ -1,0 +1,16 @@
+{
+  "name": "系统分析师刷题",
+  "short_name": "刷题",
+  "description": "软考高级·系统分析师备考刷题工具:按考点刷题、错题本、错题分析,离线可用",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f6f8",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

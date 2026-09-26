@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-把本地题库 JSON 打包成 data/bank.js,供网页端直接加载。
-用法: python3 build_bank.py [题库.json 路径]
-不传参数时默认读取 ../刷题工具/data/题库.json(与旧版刷题工具共用一份题库)。
+把两路题库合并打包成 data/bank.js,供网页端直接加载:
+1. 自编题库 ../刷题工具/data/题库.json(与旧版刷题工具共用)
+2. 历年真题 data/zhenti.json(import_zhenti.py 从 src-exams/ 生成)
+用法: python3 build_bank.py [自编题库.json 路径]
 """
 import json
 import os
@@ -11,22 +12,40 @@ import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_SRC = os.path.join(BASE_DIR, "..", "刷题工具", "data", "题库.json")
+ZHEN_TI = os.path.join(BASE_DIR, "data", "zhenti.json")
 OUT_FILE = os.path.join(BASE_DIR, "data", "bank.js")
+
+
+def validate(q, idx):
+    q.setdefault("id", "q%d" % (idx + 1))
+    if q.get("answer") not in q.get("options", {}):
+        raise ValueError("题目 %s 的 answer(%r)不在 options 中" % (q.get("id"), q.get("answer")))
 
 
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SRC
-    with open(src, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    for i, q in enumerate(data):
-        q.setdefault("id", "q%d" % (i + 1))
-        if q.get("answer") not in q.get("options", {}):
-            raise ValueError("题目 %s 的 answer(%r)不在 options 中" % (q.get("id"), q.get("answer")))
+    bank = []
+    for path in (src, ZHEN_TI):
+        if not os.path.exists(path):
+            if path == ZHEN_TI:
+                print("警告: %s 不存在,跳过真题(先跑 import_zhenti.py)" % path)
+                continue
+            raise SystemExit("找不到题库文件: %s" % path)
+        with open(path, "r", encoding="utf-8") as f:
+            part = json.load(f)
+        print("载入 %s:%d 题" % (path, len(part)))
+        bank.extend(part)
+    seen = set()
+    for i, q in enumerate(bank):
+        validate(q, i)
+        if q["id"] in seen:
+            raise ValueError("题目 id 重复: %s" % q["id"])
+        seen.add(q["id"])
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         f.write("window.BANK=")
-        f.write(json.dumps(data, ensure_ascii=False, separators=(",", ":")))
+        f.write(json.dumps(bank, ensure_ascii=False, separators=(",", ":")))
         f.write(";\n")
-    print("已生成 %s(共 %d 题)" % (OUT_FILE, len(data)))
+    print("已生成 %s(共 %d 题)" % (OUT_FILE, len(bank)))
 
 
 if __name__ == "__main__":

@@ -142,6 +142,25 @@
   }
   ul.weaklist, ol.weaklist { margin:0; padding-left:20px; }
   ul.weaklist li, ol.weaklist li { margin-bottom:6px; font-size:14px; line-height:1.7; }
+
+  /* 模考 */
+  .mtimer { display:flex; align-items:center; gap:10px; background:var(--card);
+            border:1px solid var(--border); border-radius:14px; padding:11px 13px;
+            margin-bottom:12px; font-size:16px; font-weight:700;
+            font-variant-numeric:tabular-nums; position:sticky; top:calc(52px + env(safe-area-inset-top)); z-index:8; }
+  .mtimer .muted { font-weight:400; }
+  .mtimer.warn { background:var(--red-soft); border-color:var(--red-border); color:var(--red); }
+  .sheet { display:grid; grid-template-columns:repeat(auto-fill,minmax(40px,1fr)); gap:7px; }
+  .sheet button { min-height:38px; border-radius:9px; border:1px solid var(--border);
+                  background:var(--card); color:var(--muted); font-size:13px; cursor:pointer; }
+  .sheet button.ans { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .sheet button.flag { border-color:#f59e0b; box-shadow:inset 0 -3px 0 #f59e0b; }
+  .sheet button.cur { outline:2px solid var(--accent); outline-offset:1px; }
+  .opt.sel { border-color:var(--accent); background:var(--accent-soft); }
+  .opt.sel .badge { background:var(--accent); color:#fff; }
+  .hist-row { display:flex; align-items:center; gap:10px; padding:9px 0;
+              border-bottom:1px solid var(--border); font-size:13.5px; flex-wrap:wrap; }
+  .hist-row:last-child { border-bottom:none; }
 </style>
 </head>
 <body>
@@ -152,6 +171,8 @@
 
 <main>
   <section id="view-home"></section>
+
+  <section id="view-mock" class="hidden"></section>
 
   <section id="view-quiz" class="hidden">
     <div class="card hidden" id="resume-card">
@@ -189,6 +210,7 @@
 <nav class="tabbar">
   <button id="tab-home" class="active" onclick="switchTab('home')"><span class="ticon">🏠</span><span>首页</span></button>
   <button id="tab-quiz" onclick="switchTab('quiz')"><span class="ticon">📝</span><span>刷题</span></button>
+  <button id="tab-mock" onclick="switchTab('mock')"><span class="ticon">🎯</span><span>模考</span></button>
   <button id="tab-wrong" onclick="switchTab('wrong')"><span class="ticon">❌</span><span>错题本</span><i class="badge hidden" id="wrong-badge">0</i></button>
   <button id="tab-stats" onclick="switchTab('stats')"><span class="ticon">📊</span><span>分析</span></button>
 </nav>
@@ -203,7 +225,7 @@ BANK.forEach(function (q) { QMAP[q.id] = q; });
 var CATS = [];
 BANK.forEach(function (q) { if (CATS.indexOf(q.category) < 0) CATS.push(q.category); });
 var STREAK_REMOVE = 2;   // 错题连续答对 N 次后自动移出错题本
-var LS = { att: "rq_attempts", wrong: "rq_wrong", quiz: "rq_session" };
+var LS = { att: "rq_attempts", wrong: "rq_wrong", quiz: "rq_session", mock: "rq_mock", mockHist: "rq_mock_hist" };
 
 var $ = function (s) { return document.querySelector(s); };
 var esc = function (s) {
@@ -298,12 +320,13 @@ function updateBadge() {
 
 /* ================= 标签切换 ================= */
 function switchTab(name) {
-  ["home", "quiz", "wrong", "stats"].forEach(function (t) {
+  ["home", "quiz", "mock", "wrong", "stats"].forEach(function (t) {
     $("#tab-" + t).classList.toggle("active", t === name);
     $("#view-" + t).classList.toggle("hidden", t !== name);
   });
   if (name === "home") loadHome();
   if (name === "quiz") prepareQuizTab();
+  if (name === "mock") renderMock();
   if (name === "wrong") loadWrong();
   if (name === "stats") loadStats();
   window.scrollTo(0, 0);
@@ -427,8 +450,10 @@ function curQ() { return QMAP[QUIZ.ids[QUIZ.idx]]; }
 function renderQuestion() {
   var q = curQ(), total = QUIZ.ids.length;
   $("#quiz-area").innerHTML =
-    '<div class="card"><div class="qhead"><span class="chip">' + esc(q.category) +
-    (QUIZ.mode === "wrong" ? " · 错题回做" : "") + '</span><span class="progress">' + (QUIZ.idx + 1) + " / " + total + "</span></div>" +
+    '<div class="card"><div class="qhead"><span class="chip">' + esc(q.category) + "</span>" +
+    (q.source ? '<span class="chip green">' + esc(q.source) + "</span>" : "") +
+    (QUIZ.mode === "wrong" ? '<span class="chip red">错题回做</span>' : "") +
+    '<span class="progress">' + (QUIZ.idx + 1) + " / " + total + "</span></div>" +
     '<div class="qtext">' + esc(q.question) + "</div>" +
     "<div>" +
     Object.keys(q.options).map(function (l) {
@@ -639,8 +664,237 @@ function resetAll() {
   switchTab("home");
 }
 
+/* ================= 模拟考试 ================= */
+var MOCK = loadJSON(LS.mock, null);
+var MOCK_HIST = loadJSON(LS.mockHist, []);
+var mockTimer = null;
+
+function persistMock() {
+  if (MOCK && !MOCK.done) localStorage.setItem(LS.mock, JSON.stringify(MOCK));
+  else localStorage.removeItem(LS.mock);
+}
+function papers() {
+  var map = {};
+  BANK.forEach(function (q) {
+    if (q.paper) { if (!map[q.paper]) map[q.paper] = []; map[q.paper].push(q.id); }
+  });
+  return Object.keys(map).sort().reverse().map(function (p) { return { name: p, ids: map[p] }; });
+}
+function renderMock() {
+  var el = $("#view-mock");
+  if (MOCK && !MOCK.done && MOCK.ids && QMAP[MOCK.ids[0]]) {
+    MOCK.ids = MOCK.ids.filter(function (id) { return QMAP[id]; });
+    renderMockRunning();
+    startMockTimer();
+    return;
+  }
+  var ps = papers();
+  var histHtml = "";
+  if (MOCK_HIST.length) {
+    histHtml = '<div class="card"><h2>历史成绩</h2>' + MOCK_HIST.slice(0, 10).map(function (h) {
+      return '<div class="hist-row"><b style="font-size:15px">' + h.score + " / " + h.total + "</b>" +
+        '<span class="' + (h.pass ? "chip green" : "chip red") + '">' + (h.pass ? "通过" : "未通过") + "</span>" +
+        '<span class="muted grow">' + esc(h.paper) + " · 用时约 " + h.used + " 分钟</span>" +
+        '<span class="muted">' + esc(h.date) + "</span></div>";
+    }).join("") + "</div>";
+  }
+  el.innerHTML =
+    '<div class="card"><h2>🎯 模拟考试(综合知识)</h2>' +
+    '<p class="muted" style="margin-top:0">还原真实考试:整卷限时、作答不即时判分、交卷后统一评分,答错同样进入错题本。计时不会暂停,中途退出 app 时钟照走。</p>' +
+    '<div class="row" style="margin:10px 0 4px"><b style="font-size:14px">限时</b><span class="grow"></span>' +
+    '<select id="mock-dur"><option value="150">150 分钟(真实时长)</option><option value="90">90 分钟</option>' +
+    '<option value="45">45 分钟</option><option value="0">不限时</option></select></div>' +
+    ps.map(function (p) {
+      return '<div class="crow"><div class="l1"><b>' + esc(p.name) + "</b>" +
+        '<span class="meta">' + p.ids.length + " 题 · 真题</span>" +
+        '<button class="btn primary" style="padding:6px 16px;font-size:13px" onclick="startMockPaper(\'' + esc(p.name) + '\')">开始</button></div></div>';
+    }).join("") +
+    '<div class="crow"><div class="l1"><b>智能组卷</b><span class="meta">全题库按考点均衡抽 75 题</span>' +
+    '<button class="btn primary" style="padding:6px 16px;font-size:13px" onclick="startMockSmart()">开始</button></div></div>' +
+    "</div>" + histHtml;
+}
+function startMockPaper(name) {
+  var ps = papers();
+  var p = null;
+  ps.forEach(function (x) { if (x.name === name) p = x; });
+  if (!p || !p.ids.length) { alert("该试卷暂无题目"); return; }
+  launchMock(p.name, shuffleArr(p.ids.slice()));
+}
+function startMockSmart() {
+  launchMock("智能模拟卷", smartDraw(75));
+}
+function launchMock(paper, ids) {
+  if (!ids.length) { alert("没有可用的题目"); return; }
+  var dur = $("#mock-dur") ? parseInt($("#mock-dur").value, 10) : 150;
+  MOCK = { paper: paper, ids: ids, ans: {}, flags: [], idx: 0, startedAt: Date.now(), dur: isNaN(dur) ? 150 : dur, done: false };
+  persistMock();
+  renderMockRunning();
+  startMockTimer();
+}
+function smartDraw(n) {
+  var byCat = {};
+  BANK.forEach(function (q) {
+    if (!byCat[q.category]) byCat[q.category] = [];
+    byCat[q.category].push(q.id);
+  });
+  var pools = Object.keys(byCat).map(function (c) { return shuffleArr(byCat[c].slice()); });
+  var out = [], i = 0;
+  while (out.length < n) {
+    var added = false;
+    for (var p = 0; p < pools.length && out.length < n; p++) {
+      if (i < pools[p].length) { out.push(pools[p][i]); added = true; }
+    }
+    if (!added) break;
+    i++;
+  }
+  return shuffleArr(out);
+}
+function renderMockRunning() {
+  $("#view-mock").innerHTML =
+    '<div class="mtimer" id="mock-timerbar"><span id="mock-timer">--:--</span>' +
+    '<span class="muted grow" style="font-size:12.5px">' + esc(MOCK.paper) + "</span>" +
+    '<button class="btn danger" style="padding:6px 14px;font-size:13px" onclick="submitMock(false)">交卷</button></div>' +
+    '<div id="mock-q"></div>' +
+    '<div class="card"><h2>答题卡</h2><div class="sheet" id="mock-sheet"></div>' +
+    '<p class="muted" style="margin:9px 0 0">蓝底 = 已作答 · 底部橙条 = 已标记 · 再点一次已选选项可取消。点击数字跳题。</p></div>';
+  renderMockQ();
+}
+function renderMockQ() {
+  var q = QMAP[MOCK.ids[MOCK.idx]], total = MOCK.ids.length;
+  $("#mock-q").innerHTML =
+    '<div class="card"><div class="qhead"><span class="chip">' + esc(q.category) + "</span>" +
+    (q.source ? '<span class="chip green">' + esc(q.source) + "</span>" : "") +
+    '<span class="progress">' + (MOCK.idx + 1) + " / " + total + "</span></div>" +
+    '<div class="qtext">' + esc(q.question) + "</div>" +
+    Object.keys(q.options).map(function (l) {
+      var sel = MOCK.ans[q.id] === l;
+      return '<button class="opt' + (sel ? " sel" : "") + '" id="mopt-' + l + '" onclick="pickMock(\'' + l + '\')"><span class="badge">' + l + "</span><span>" + esc(q.options[l]) + "</span></button>";
+    }).join("") +
+    '<div class="row" style="margin-top:12px">' +
+    '<button class="btn" style="flex:1" onclick="mockNav(-1)">上一题</button>' +
+    '<button class="btn" style="flex:1" onclick="toggleFlag()">' + (MOCK.flags.indexOf(q.id) >= 0 ? "★ 已标记" : "☆ 标记") + "</button>" +
+    '<button class="btn primary" style="flex:1" onclick="mockNav(1)">' + (MOCK.idx === total - 1 ? "去交卷 ⏎" : "下一题") + "</button>" +
+    "</div></div>";
+  renderSheet();
+  window.scrollTo(0, 0);
+}
+function pickMock(l) {
+  var q = QMAP[MOCK.ids[MOCK.idx]];
+  if (MOCK.ans[q.id] === l) delete MOCK.ans[q.id];
+  else MOCK.ans[q.id] = l;
+  persistMock();
+  renderMockQ();
+}
+function mockNav(d) {
+  var n = MOCK.idx + d;
+  if (n < 0) n = 0;
+  if (n >= MOCK.ids.length) { submitMock(false); return; }
+  MOCK.idx = n;
+  persistMock();
+  renderMockQ();
+}
+function toggleFlag() {
+  var qid = MOCK.ids[MOCK.idx];
+  var i = MOCK.flags.indexOf(qid);
+  if (i >= 0) MOCK.flags.splice(i, 1); else MOCK.flags.push(qid);
+  persistMock();
+  renderMockQ();
+}
+function renderSheet() {
+  $("#mock-sheet").innerHTML = MOCK.ids.map(function (id, i) {
+    var cls = [];
+    if (MOCK.ans[id]) cls.push("ans");
+    if (MOCK.flags.indexOf(id) >= 0) cls.push("flag");
+    if (i === MOCK.idx) cls.push("cur");
+    return '<button class="' + cls.join(" ") + '" onclick="jumpMock(' + i + ')">' + (i + 1) + "</button>";
+  }).join("");
+}
+function jumpMock(i) { MOCK.idx = i; persistMock(); renderMockQ(); }
+function startMockTimer() {
+  if (mockTimer) clearInterval(mockTimer);
+  if (!MOCK || MOCK.done) return;
+  tickMockTimer();
+  mockTimer = setInterval(tickMockTimer, 1000);
+}
+function tickMockTimer() {
+  if (!MOCK || MOCK.done) { if (mockTimer) clearInterval(mockTimer); return; }
+  var t = document.getElementById("mock-timer");
+  if (!t) return;
+  if (MOCK.dur > 0) {
+    var left = MOCK.startedAt + MOCK.dur * 60000 - Date.now();
+    if (left <= 0) { t.textContent = "剩余 00:00"; submitMock(true); return; }
+    var m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+    t.textContent = "剩余 " + (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+    var bar = document.getElementById("mock-timerbar");
+    if (bar) bar.classList.toggle("warn", left < 5 * 60000);
+  } else {
+    var used = Date.now() - MOCK.startedAt;
+    var um = Math.floor(used / 60000), us = Math.floor((used % 60000) / 1000);
+    t.textContent = "已用 " + (um < 10 ? "0" : "") + um + ":" + (us < 10 ? "0" : "") + us;
+  }
+}
+function submitMock(auto) {
+  if (!MOCK || MOCK.done) return;
+  var total = MOCK.ids.length;
+  var answered = Object.keys(MOCK.ans).length;
+  if (!auto) {
+    var un = total - answered;
+    if (!confirm(un > 0 ? "还有 " + un + " 题未作答,确定交卷吗?" : "确定交卷吗?")) return;
+  }
+  if (mockTimer) clearInterval(mockTimer);
+  var score = 0;
+  MOCK.ids.forEach(function (id) {
+    var q = QMAP[id], pick = MOCK.ans[id];
+    if (!pick) return;                       // 未作答不计入做题记录
+    var ok = pick === q.answer;
+    if (ok) score++;
+    attempts.push({ qid: id, choice: pick, ok: ok ? 1 : 0, mode: "mock", at: fmtNow() });
+    updateWrong(id, ok);
+  });
+  persist();
+  var usedMin = Math.max(1, Math.round((Date.now() - MOCK.startedAt) / 60000));
+  var need = Math.ceil(total * 0.6);
+  var pass = score >= need;
+  MOCK.done = true;
+  persistMock();
+  MOCK_HIST.unshift({ paper: MOCK.paper, score: score, total: total, pass: pass, date: fmtNow(), used: usedMin });
+  MOCK_HIST = MOCK_HIST.slice(0, 30);
+  localStorage.setItem(LS.mockHist, JSON.stringify(MOCK_HIST));
+  renderMockResult(MOCK.paper, score, total, pass, need, usedMin, total - answered);
+}
+function renderMockResult(paper, score, total, pass, need, usedMin, unanswered) {
+  var rows = MOCK.ids.map(function (id, i) {
+    var q = QMAP[id], pick = MOCK.ans[id], ok = pick === q.answer;
+    return '<div class="witem"><div class="wq">' + (i + 1) + ". " + esc(q.question) + "</div>" +
+      '<div class="wmeta">' +
+      '<span class="' + (!pick ? "chip" : ok ? "chip green" : "chip red") + '">' + (!pick ? "未作答" : "你的答案 " + pick) + "</span>" +
+      (ok ? "" : '<span class="chip">正确答案 ' + q.answer + "</span>") +
+      (q.source ? '<span class="muted">' + esc(q.source) + "</span>" : "") + "</div>" +
+      '<div class="reveal" style="margin-top:8px"><b>解析:</b>' + esc(q.explanation || "") + "</div></div>";
+  }).join("");
+  $("#view-mock").innerHTML =
+    '<div class="card center"><div class="summary-big">' + (pass ? "🎉" : "💪") + " " + score + " / " + total + "</div>" +
+    '<div class="muted">' + esc(paper) + "</div>" +
+    '<div class="row" style="justify-content:center;margin-top:10px">' +
+    '<span class="' + (pass ? "chip green" : "chip red") + '">' + (pass ? "通过" : "未通过") + "(及格线 " + need + " 分)</span>" +
+    '<span class="muted">用时约 ' + usedMin + " 分钟 · 未作答 " + unanswered + " 题</span></div>" +
+    '<div class="row" style="justify-content:center;margin-top:16px">' +
+    '<button class="btn primary" onclick="finishMock()">完成</button></div></div>' +
+    '<div class="card"><h2>逐题回顾(错题已进错题本)</h2>' + rows + "</div>";
+  updateBadge();
+  window.scrollTo(0, 0);
+}
+function finishMock() { MOCK = null; persistMock(); renderMock(); }
+
 /* ================= 键盘操作(桌面端) ================= */
 document.addEventListener("keydown", function (e) {
+  if (!$("#view-mock").classList.contains("hidden") && MOCK && !MOCK.done) {
+    var mmap = { a: "A", b: "B", c: "C", d: "D", "1": "A", "2": "B", "3": "C", "4": "D" };
+    var ml = mmap[e.key.toLowerCase()];
+    if (ml) { pickMock(ml); return; }
+    if (e.key === "Enter") { mockNav(1); return; }
+    return;
+  }
   if ($("#view-quiz").classList.contains("hidden") || !QUIZ || QUIZ.done) return;
   if (e.key === "Enter" || e.key === " ") {
     var btn = $("#btn-next");

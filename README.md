@@ -3,7 +3,7 @@
 软考高级「系统分析师」备考刷题工具。纯静态网页(PWA),无需后端、无需安装,
 iPhone 上用 Safari「添加到主屏幕」即可像原生 app 一样使用,**离线也能刷题**。
 
-> 题库:**500 题** = 125 自编题 + **375 道历年真题**(2018–2023 六套综合知识卷,含解析)
+> 题库:**559 题** = 125 自编题 + 375 道 2018–2023 历年真题(六套综合知识卷) + **59 道 2024–2026 机考回忆版真题**
 
 ## 📱 iPhone 上使用
 
@@ -45,15 +45,20 @@ git add -A && git commit -m "更新题库" && git push
 ### 真题数据管道
 
 ```bash
-# 1. 原始真题 JSON 放在 src-exams/choice-20xx.json(已入库)
-# 2. 清洗转换:HTML 转纯文本、剔除含图题、按关键词归类考点、识别专业英语题
-python3 import_zhenti.py        # 生成 data/zhenti.json
-# 3. 合并打包
+# 2018-2023 结构化真题:
+#   原始 JSON 在 src-exams/choice-20xx.json
+python3 import_zhenti.py        # 清洗转换 -> data/zhenti.json
+
+# 2024-2026 机考回忆版:
+#   清洗后的回忆版文本在 src-exams/recall-*.txt(dump_recall.py 从网页生成)
+python3 import_recall.py        # 转换 -> data/zhenti-extra.json
+
+# 合并打包
 python3 build_bank.py
 ```
 
 真题归类用关键词规则自动完成(题干权重高、选项权重低,命中 ≥2 分才归类),
-少数不匹配的归入「综合其他」,如发现个别归错考点可手工改 `data/zhenti.json` 后重新 build。
+少数不匹配的归入「综合其他」,如发现个别归错考点可手工改对应 JSON 后重新 build。
 
 ## 💻 本地开发
 
@@ -69,19 +74,25 @@ python3 -m http.server 8642
 ```
 ├── index.html            # 应用本体(HTML/CSS/JS 单文件)
 ├── data/bank.js          # 合并题库(build_bank.py 生成,勿手改)
-├── data/zhenti.json      # 清洗后的真题(import_zhenti.py 生成)
-├── src-exams/            # 原始真题 JSON(2018–2023 综合知识卷)
+├── data/zhenti.json      # 2018-2023 真题(import_zhenti.py 生成)
+├── data/zhenti-extra.json# 2024-2026 机考回忆真题(import_recall.py 生成)
+├── src-exams/            # 原始真题 JSON(choice-*.json)与回忆版文本(recall-*.txt)
 ├── manifest.webmanifest  # PWA 清单
 ├── sw.js                 # Service Worker(离线缓存)
 ├── icons/                # 应用图标(make_icons.py 生成)
 ├── build_bank.py         # 题库合并打包脚本
-├── import_zhenti.py      # 真题清洗转换脚本
+├── import_zhenti.py      # 2018-2023 真题清洗脚本
+├── import_recall.py      # 2024-2026 回忆版转换脚本
+├── dump_recall.py        # 回忆版网页 -> 规范文本(一次性)
 └── make_icons.py         # 图标生成脚本
 ```
 
 ## 说明
 
 - 做题记录仅存放在用户设备本地,不上传服务器
-- 真题来自开源整理项目 [xiaolidan00/ruankao-question](https://github.com/xiaolidan00/ruankao-question)(2018–2023,
-  网络回忆版整理);题干含图的题(共 54 道)纯文本无法呈现,暂未收录;2024 年机考后的真题暂无公开结构化数据
+- 真题来源:
+  - 2018–2023:开源整理项目 [xiaolidan00/ruankao-question](https://github.com/xiaolidan00/ruankao-question),
+    题干含图的题(54 道)纯文本无法呈现,未收录
+  - 2024–2026:机考后考生回忆(CSDN 整理版等,来源链接见 `src-exams/recall-*.txt` 头部),
+    回忆版残缺题(选项配对损坏、缺答案共 10 题)未收录;个别题目答案由整理者依据教材知识核定,解析中已注明
 - 仅供个人备考学习使用

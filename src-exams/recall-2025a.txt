@@ -1,0 +1,15 @@
+### 1
+UML图中，用于描述系统动态行为的是（ ）。
+A|组件图（Component Diagram）
+B|部署图（Deployment Diagram）
+C|序列图（Sequence Diagram）
+D|类图（Class Diagram）
+答案: C
+
+### 2
+设计模式中，单例模式属于（ ）。
+A|组合型模式
+B|创建型模式
+C|结构型模式
+D|行为型模式
+答案: B

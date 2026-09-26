@@ -1,6 +1,6 @@
 /* Service Worker:缓存应用外壳,离线可刷题。
    注意:每次发布新版本时把 CACHE 版本号 +1,客户端下次打开会自动换新缓存。 */
-var CACHE = "ruankao-quiz-v2";
+var CACHE = "ruankao-quiz-v3";
 var ASSETS = [
   "./",
   "./index.html",

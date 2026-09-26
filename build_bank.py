@@ -12,7 +12,10 @@ import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_SRC = os.path.join(BASE_DIR, "..", "刷题工具", "data", "题库.json")
-ZHEN_TI = os.path.join(BASE_DIR, "data", "zhenti.json")
+ZHEN_TI = [
+    os.path.join(BASE_DIR, "data", "zhenti.json"),      # 2018-2023 结构化真题
+    os.path.join(BASE_DIR, "data", "zhenti-extra.json"),  # 2024-2026 机考回忆版
+]
 OUT_FILE = os.path.join(BASE_DIR, "data", "bank.js")
 
 
@@ -25,12 +28,10 @@ def validate(q, idx):
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SRC
     bank = []
-    for path in (src, ZHEN_TI):
+    for path in [src] + ZHEN_TI:
         if not os.path.exists(path):
-            if path == ZHEN_TI:
-                print("警告: %s 不存在,跳过真题(先跑 import_zhenti.py)" % path)
-                continue
-            raise SystemExit("找不到题库文件: %s" % path)
+            print("警告: %s 不存在,跳过" % path)
+            continue
         with open(path, "r", encoding="utf-8") as f:
             part = json.load(f)
         print("载入 %s:%d 题" % (path, len(part)))
